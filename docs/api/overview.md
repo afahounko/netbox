@@ -104,7 +104,7 @@ The base serializer is used to represent the default view of a model. This inclu
 }
 ```
 
-Related objects (e.g. `ForeignKey` fields) are represented using a nested serializer. A nested serializer provides a minimal representation of an object, including only its URL and enough information to construct its name. When performing write api actions (`POST`, `PUT`, and `PATCH`), any `ForeignKey` relationships do not use the nested serializer, instead you will pass just the integer ID of the related model.  
+Related objects (e.g. `ForeignKey` fields) are represented using a nested serializer. A nested serializer provides a minimal representation of an object, including only its URL and enough information to construct its name. When performing write api actions (`POST`, `PUT`, and `PATCH`), any `ForeignKey` relationships do not use the nested serializer, instead you will pass just the integer ID of the related model.
 
 When a base serializer includes one or more nested serializers, the hierarchical structure precludes it from being used for write operations. Thus, a flat representation of an object may be provided using a writable serializer. This serializer includes only raw database values and is not typically used for retrieval, except as part of the response to the creation or updating of an object.
 
@@ -121,6 +121,52 @@ When a base serializer includes one or more nested serializers, the hierarchical
     "description": ""
 }
 ```
+
+## Brief Format
+
+Most API endpoints support an optional "brief" format, which returns only a minimal representation of each object in the response. This is useful when you need only a list of the objects themselves without any related data, such as when populating a drop-down list in a form.
+
+For example, the default (complete) format of an IP address looks like this:
+
+```
+GET /api/ipam/prefixes/13980/
+
+{
+    "id": 13980,
+    "family": 4,
+    "prefix": "192.0.2.0/24",
+    "site": null,
+    "vrf": null,
+    "tenant": null,
+    "vlan": null,
+    "status": {
+        "value": 1,
+        "label": "Active"
+    },
+    "role": null,
+    "is_pool": false,
+    "description": "",
+    "tags": [],
+    "custom_fields": {},
+    "created": "2018-12-11",
+    "last_updated": "2018-12-11T16:27:55.073174-05:00"
+}
+```
+
+The brief format is much more terse, but includes a link to the object's full representation:
+
+```
+GET /api/ipam/prefixes/13980/?brief=1
+
+{
+    "id": 13980,
+    "url": "https://netbox/api/ipam/prefixes/13980/",
+    "family": 4,
+    "prefix": "192.0.2.0/24"
+}
+```
+
+The brief format is supported for both lists and individual objects.
 
 ## Static Choice Fields
 
@@ -206,3 +252,28 @@ The maximum number of objects that can be returned is limited by the [`MAX_PAGE_
 
 !!! warning
     Disabling the page size limit introduces a potential for very resource-intensive requests, since one API request can effectively retrieve an entire table from the database.
+
+# Filtering
+
+A list of objects retrieved via the API can be filtered by passing one or more query parameters. The same parameters used by the web UI work for the API as well. For example, to return only prefixes with a status of "Active" (`1`):
+
+```
+GET /api/ipam/prefixes/?status=1
+```
+
+Certain filters can be included multiple times within a single request. These will effect a logical OR and return objects matching any of the given values. For example, the following will return all active and reserved prefixes:
+
+```
+GET /api/ipam/prefixes/?status=1&status=2
+```
+
+## Custom Fields
+
+To filter on a custom field, prepend `cf_` to the field name. For example, the following query will return only sites where a custom field named `foo` is equal to 123:
+
+```
+GET /api/dcim/sites/?cf_foo=123
+```
+
+!!! note
+    Full versus partial matching when filtering is configurable per custom field. Filtering can be toggled (or disabled) for a custom field in the admin UI.

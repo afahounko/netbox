@@ -1,11 +1,9 @@
-from __future__ import unicode_literals
-
 from django.core.exceptions import ValidationError
 from django.db import models
-from netaddr import IPNetwork
+from netaddr import AddrFormatError, IPNetwork
 
-from .formfields import IPFormField
 from . import lookups
+from .formfields import IPFormField
 
 
 def prefix_validator(prefix):
@@ -18,7 +16,7 @@ class BaseIPField(models.Field):
     def python_type(self):
         return IPNetwork
 
-    def from_db_value(self, value, expression, connection, context):
+    def from_db_value(self, value, expression, connection):
         return self.to_python(value)
 
     def to_python(self, value):
@@ -26,7 +24,9 @@ class BaseIPField(models.Field):
             return value
         try:
             return IPNetwork(value)
-        except ValueError as e:
+        except AddrFormatError as e:
+            raise ValidationError("Invalid IP address format: {}".format(value))
+        except (TypeError, ValueError) as e:
             raise ValidationError(e)
 
     def get_prep_value(self, value):
@@ -40,7 +40,7 @@ class BaseIPField(models.Field):
     def formfield(self, **kwargs):
         defaults = {'form_class': self.form_class()}
         defaults.update(kwargs)
-        return super(BaseIPField, self).formfield(**defaults)
+        return super().formfield(**defaults)
 
 
 class IPNetworkField(BaseIPField):
